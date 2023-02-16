@@ -15,6 +15,7 @@ import json
 SCHEMA_STATUSES = """CREATE TABLE IF NOT EXISTS statuses_expanded(
 	id BIGINT PRIMARY KEY,
 	account_id BIGINT,
+	group_id INT,
 	bookmark_collection_id BIGINT,
 	card JSONB,
 	content TEXT,
@@ -64,7 +65,7 @@ SCHEMA_ACCOUNTS = """CREATE TABLE IF NOT EXISTS accounts_expanded(
 	is_pro BOOLEAN,
 	locked BOOLEAN,
 	is_donor BOOLEAN,
-	created TIMESTAMP WITH TIMEZONE,
+	created TIMESTAMP WITH TIME ZONE,
 	is_investor BOOLEAN,
 	is_verified BOOLEAN,
 	display_name TEXT,
@@ -76,11 +77,31 @@ SCHEMA_ACCOUNTS = """CREATE TABLE IF NOT EXISTS accounts_expanded(
 	is_flagged_as_spam BOOLEAN
 )"""
 
+SCHEMA_GROUPS = """CREATE TABLE IF NOT EXISTS gabgroups_expanded(
+	id INT PRIMARY KEY,
+	password TEXT,
+	url TEXT,
+	slug JSONB,
+	tags JSONB,
+	title TEXT,
+	created_at TIMESTAMP WITH TIME ZONE,
+	is_private BOOLEAN,
+	is_visible BOOLEAN,
+	description TEXT,
+	is_archived BOOLEAN,
+	has_password BOOLEAN,
+	member_count INT,
+	group_category JSONB,
+	cover_image_url TEXT,
+	description_html TEXT
+)"""
+
 # There are ~39 million statuses - loading them all at once will exhaust all
 # memory quickly, so we'll load, parse, and save 10K at a time 
 CHUNK_SIZE = 10000
-INSERT_STATUS = "INSERT INTO statuses_expanded VALUES %s"
+INSERT_STATUS  = "INSERT INTO statuses_expanded VALUES %s"
 INSERT_ACCOUNT = "INSERT INTO accounts_expanded VALUES %s"
+INSERT_GROUP   = "INSERT INTO gabgroups_expanded VALUES %s"
 
 # Dump object as json, *but* return None instead of 'null' so SQL won't
 # think it's a string
@@ -114,6 +135,7 @@ if __name__ == "__main__":
 	# Create the new tables
 	wc.execute(SCHEMA_STATUSES)
 	wc.execute(SCHEMA_ACCOUNTS)
+	wc.execute(SCHEMA_GROUPS)
 
 	# If you have changed the number of statuses then the loading bar will
 	# have the wrong upper-bound, but that just means it'll finish before 100%
@@ -122,7 +144,7 @@ if __name__ == "__main__":
 	pbar = tqdm(total=total_statuses, desc="Expanding status messages")
 
 	# While there's unparsed data left, load a chunk, parse it, write it back
-	rc.execute("SELECT id,account_id,data FROM statuses")
+	rc.execute("SELECT id,account_id,group_id,data FROM statuses")
 	while( True ):
 		rows = rc.fetchmany(CHUNK_SIZE)
 		if( len(rows) == 0 ):
@@ -131,10 +153,11 @@ if __name__ == "__main__":
 		for data in rows:
 			id_ = data[0]
 			account_id = data[1]
-			s = defaultdict(lambda: None, data[2])
+			group_id = data[2]
+			s = defaultdict(lambda: None, data[3])
 			# List fields in correct order, and convert json blobs back to
 			# strings
-			thisrow = [id_, account_id, s["bookmark_collection_id"], js(s["card"]), s["content"], s["created_at"], js(s["emojis"]), s["expires_at"], s["favourited"], s["favourites_count"], js(s["group"]), s["has_quote"], s["in_reply_to_account_id"], s["in_reply_to_id"], s["language"], js(s["media_attachments"]), js(s["mentions"]), s["pinnable"], s["pinnable_by_group"], s["plain_markdown"], js(s["poll"]), js(s["quote"]), s["quote_of_id"], js(s["reblog"]), s["reblogged"], s["reblogs_count"], s["replies_count"], s["revised_at"], s["rich_content"], s["sensitive"], s["spoiler_text"], js(s["tags"]), s["url"], s["visibility"]]
+			thisrow = [id_, account_id, group_id, s["bookmark_collection_id"], js(s["card"]), s["content"], s["created_at"], js(s["emojis"]), s["expires_at"], s["favourited"], s["favourites_count"], js(s["group"]), s["has_quote"], s["in_reply_to_account_id"], s["in_reply_to_id"], s["language"], js(s["media_attachments"]), js(s["mentions"]), s["pinnable"], s["pinnable_by_group"], s["plain_markdown"], js(s["poll"]), js(s["quote"]), s["quote_of_id"], js(s["reblog"]), s["reblogged"], s["reblogs_count"], s["replies_count"], s["revised_at"], s["rich_content"], s["sensitive"], s["spoiler_text"], js(s["tags"]), s["url"], s["visibility"]]
 			toWrite.append(thisrow)
 		execute_values(wc, INSERT_STATUS, toWrite)
 		pbar.update(len(rows))
@@ -164,5 +187,29 @@ if __name__ == "__main__":
 		pbar.update(len(rows))
 	pbar.close()
 	conn.commit()
-	conn.close()
 	print("Done expanding accounts.")
+
+	# Reset the server-side cursor now that we've committed
+	rc = conn.cursor('server_side_read_gab') # Read cursor is server-side
+	total_groups = 31857
+	pbar = tqdm(total=total_groups, desc="Expanding groups")
+	rc.execute("SELECT id,password,data FROM gabgroups")
+	while( True ):
+		rows = rc.fetchmany(CHUNK_SIZE)
+		if( len(rows) == 0 ):
+			break
+		toWrite = []
+		for data in rows:
+			(id_,password,d) = data
+			if( d ):
+				s = defaultdict(lambda: None, d)
+				thisrow = [id_,password,s["url"],js(s["slug"]),js(s["tags"]),s["title"],s["created_at"],s["is_private"],s["is_visible"],s["description"],s["is_archived"],s["has_password"],s["member_count"],js(s["group_category"]),s["cover_image_url"],s["description_html"]]
+			else:
+				thisrow = [id_,password] + [None]*14
+			toWrite.append(thisrow)
+		execute_values(wc, INSERT_GROUP, toWrite)
+		pbar.update(len(rows))
+	pbar.close()
+	conn.commit()
+	conn.close()
+	print("Done expanding groups.")

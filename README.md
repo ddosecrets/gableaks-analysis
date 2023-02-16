@@ -2,9 +2,9 @@
 
 This codebase relates to the [GabLeaks release](https://ddosecrets.com/wiki/GabLeaks) from Distributed Denial of Secrets. While the Gab data itself is limited distribution, this helper code is public.
 
-The original release format is a Postgresql database dump that includes data in three tables: accounts, statuses, and verifications. However, both the 'statuses' and 'accounts' tables contain a 'data' column where most of the relevant details are stored in JSON.
+The original release format is a Postgresql database dump that includes data in four tables: accounts, statuses, groups, and verifications. However, the 'statuses', 'accounts', and 'gabgroups' tables contain a 'data' column where most of the relevant details are stored in JSON.
 
-The mixed JSON / SQL format is not the most convenient for analysis. This script expands the data, creating new `statuses_expanded` and `accounts_expanded` tables with individual typed fields instead of one big JSON blob. The schemas are as follows:
+The mixed JSON / SQL format is not the most convenient for analysis. This script expands the data, creating new `statuses_expanded`, `accounts_expanded`, and `gabgroups_expanded` tables with individual typed fields instead of one big JSON blob. The schemas are as follows:
 
 **statuses\_expanded**
 
@@ -72,6 +72,27 @@ The mixed JSON / SQL format is not the most convenient for analysis. This script
 | followers\_count           | bigint                   |
 | following\_count           | bigint                   |
 | is\_flagged\_as\_spam      | boolean                  |
+
+**gabgroups\_expanded**
+
+| Field                      | Type                     |
+| -------------------------- | ------------------------ |
+| id                         | int                      |
+| password                   | text                     |
+| url                        | text                     |
+| slug                       | jsonb                    |
+| tags                       | jsonb                    |
+| title                      | text                     |
+| created\_at                | timestamp with time zone |
+| is\_private                | boolean                  |
+| is\_visible                | boolean                  |
+| description                | text                     |
+| is\_archived               | boolean                  |
+| has\_password              | boolean                  |
+| member\_count              | int                      |
+| group\_category            | jsonb                    |
+| cover\_image\_url          | text                     |
+| description\_html          | text                     |
 
 ### Usage
 
