@@ -2,7 +2,7 @@
 
 This codebase relates to the [GabLeaks release](https://ddosecrets.com/wiki/GabLeaks) from Distributed Denial of Secrets. While the Gab data itself is limited distribution, this helper code is public.
 
-The original release format is a Postgresql database dump that includes data in four tables: accounts, statuses, groups, and verifications. However, the 'statuses', 'accounts', and 'gabgroups' tables contain a 'data' column where most of the relevant details are stored in JSON.
+The original release format is a Postgresql database dump that includes data in four tables: accounts, statuses, gabgroups, and verifications. However, the 'statuses', 'accounts', and 'gabgroups' tables contain a 'data' column where most of the relevant details are stored in JSON.
 
 The mixed JSON / SQL format is not the most convenient for analysis. This script expands the data, creating new `statuses_expanded`, `accounts_expanded`, and `gabgroups_expanded` tables with individual typed fields instead of one big JSON blob. The schemas are as follows:
 
