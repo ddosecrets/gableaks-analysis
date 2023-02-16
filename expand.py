@@ -14,6 +14,7 @@ import json
 
 SCHEMA_STATUSES = """CREATE TABLE IF NOT EXISTS statuses_expanded(
 	id BIGINT PRIMARY KEY,
+	account_id BIGINT,
 	bookmark_collection_id BIGINT,
 	card JSONB,
 	content TEXT,
@@ -48,7 +49,7 @@ SCHEMA_STATUSES = """CREATE TABLE IF NOT EXISTS statuses_expanded(
 	visibility TEXT
 )"""
 
-SCHEMA_ACCOUNTS = """CREATE TABLE accounts_expanded(
+SCHEMA_ACCOUNTS = """CREATE TABLE IF NOT EXISTS accounts_expanded(
 	id BIGINT PRIMARY KEY,
 	email TEXT,
 	password TEXT,
@@ -121,7 +122,7 @@ if __name__ == "__main__":
 	pbar = tqdm(total=total_statuses, desc="Expanding status messages")
 
 	# While there's unparsed data left, load a chunk, parse it, write it back
-	rc.execute("SELECT id,data FROM statuses")
+	rc.execute("SELECT id,account_id,data FROM statuses")
 	while( True ):
 		rows = rc.fetchmany(CHUNK_SIZE)
 		if( len(rows) == 0 ):
@@ -129,10 +130,11 @@ if __name__ == "__main__":
 		toWrite = []
 		for data in rows:
 			id_ = data[0]
-			s = defaultdict(lambda: None, data[1])
+			account_id = data[1]
+			s = defaultdict(lambda: None, data[2])
 			# List fields in correct order, and convert json blobs back to
 			# strings
-			thisrow = [id_, s["bookmark_collection_id"], js(s["card"]), s["content"], s["created_at"], js(s["emojis"]), s["expires_at"], s["favourited"], s["favourites_count"], js(s["group"]), s["has_quote"], s["in_reply_to_account_id"], s["in_reply_to_id"], s["language"], js(s["media_attachments"]), js(s["mentions"]), s["pinnable"], s["pinnable_by_group"], s["plain_markdown"], js(s["poll"]), js(s["quote"]), s["quote_of_id"], js(s["reblog"]), s["reblogged"], s["reblogs_count"], s["replies_count"], s["revised_at"], s["rich_content"], s["sensitive"], s["spoiler_text"], js(s["tags"]), s["url"], s["visibility"]]
+			thisrow = [id_, account_id, s["bookmark_collection_id"], js(s["card"]), s["content"], s["created_at"], js(s["emojis"]), s["expires_at"], s["favourited"], s["favourites_count"], js(s["group"]), s["has_quote"], s["in_reply_to_account_id"], s["in_reply_to_id"], s["language"], js(s["media_attachments"]), js(s["mentions"]), s["pinnable"], s["pinnable_by_group"], s["plain_markdown"], js(s["poll"]), js(s["quote"]), s["quote_of_id"], js(s["reblog"]), s["reblogged"], s["reblogs_count"], s["replies_count"], s["revised_at"], s["rich_content"], s["sensitive"], s["spoiler_text"], js(s["tags"]), s["url"], s["visibility"]]
 			toWrite.append(thisrow)
 		execute_values(wc, INSERT_STATUS, toWrite)
 		pbar.update(len(rows))
