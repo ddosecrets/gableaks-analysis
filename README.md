@@ -1,6 +1,6 @@
 ## GabLeaks-Analysis
 
-This codebase relates to the [GabLeaks release](https://ddosecrets.com/wiki/GabLeaks) from Distributed Denial of Secrets. While the Gab data itself is limited distribution, this helper code is public.
+This codebase relates to the [GabLeaks release](https://ddosecrets.org/article/gableaks) from Distributed Denial of Secrets. While the Gab data itself is limited distribution, this helper code is public.
 
 The original release format is a Postgresql database dump that includes data in four tables: accounts, statuses, gabgroups, and verifications. However, the 'statuses', 'accounts', and 'gabgroups' tables contain a 'data' column where most of the relevant details are stored in JSON.
 
